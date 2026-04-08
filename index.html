@@ -193,6 +193,59 @@
       margin-bottom: 0.75rem;
       font-weight: 400;
     }
+
+    /* --- Autocomplete --- */
+    .sokefelt-wrapper {
+      position: relative;
+      flex: 1;
+    }
+
+    .sokefelt-wrapper input {
+      width: 100%;
+    }
+
+    .forslag {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--afk-hvit);
+      border: 2px solid var(--afk-bla);
+      border-top: none;
+      border-radius: 0 0 12px 12px;
+      max-height: 260px;
+      overflow-y: auto;
+      z-index: 10;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .forslag.synlig {
+      display: block;
+    }
+
+    .forslag-item {
+      padding: 0.6rem 1rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--afk-sort);
+      border-bottom: 1px solid #eef2f6;
+    }
+
+    .forslag-item:last-child {
+      border-bottom: none;
+    }
+
+    .forslag-item:hover,
+    .forslag-item.aktiv {
+      background: #e8f1f8;
+      color: var(--afk-bla);
+    }
+
+    .forslag-item .poststed {
+      color: #6b8294;
+      font-size: 0.82rem;
+    }
   </style>
 </head>
 <body>
@@ -203,8 +256,11 @@
     </div>
 
     <div class="sokefelt">
-      <input type="text" id="adresse" placeholder="F.eks. Storgata 5 eller Kirkegata"
-             autofocus autocomplete="off">
+      <div class="sokefelt-wrapper">
+        <input type="text" id="adresse" placeholder="F.eks. Storgata 5 eller Kirkegata"
+               autofocus autocomplete="off">
+        <div class="forslag" id="forslag"></div>
+      </div>
       <button id="sokKnapp">Søk</button>
     </div>
 
@@ -1745,6 +1801,18 @@ const KLINIKK_MAP = {
 </script>
 
 <script>
+// === Hjelpefunksjoner ===
+
+// Escape HTML-spesialtegn for sikker innerHTML-bruk
+function esc(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// Escape XML-spesialtegn for sikre WFS-filter
+function escXml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+}
+
 // === Konfigurasjon ===
 
 const REST_URL = "https://ws.geonorge.no/adresser/v1/sok";
@@ -1797,18 +1865,18 @@ function byggWfsFilter(kommunenummer, adressenavn, nummer, bokstav) {
   let betingelser = `
     <fes:PropertyIsEqualTo>
       <fes:ValueReference>app:kommunenummer</fes:ValueReference>
-      <fes:Literal>${kommunenummer}</fes:Literal>
+      <fes:Literal>${escXml(kommunenummer)}</fes:Literal>
     </fes:PropertyIsEqualTo>
     <fes:PropertyIsLike wildCard="*" singleChar="?" escapeChar="\\" matchCase="false">
       <fes:ValueReference>app:adressenavn</fes:ValueReference>
-      <fes:Literal>${adressenavn}*</fes:Literal>
+      <fes:Literal>${escXml(adressenavn)}*</fes:Literal>
     </fes:PropertyIsLike>`;
 
   if (nummer) {
     betingelser += `
     <fes:PropertyIsEqualTo>
       <fes:ValueReference>app:nummer</fes:ValueReference>
-      <fes:Literal>${nummer}</fes:Literal>
+      <fes:Literal>${escXml(nummer)}</fes:Literal>
     </fes:PropertyIsEqualTo>`;
   }
 
@@ -1816,7 +1884,7 @@ function byggWfsFilter(kommunenummer, adressenavn, nummer, bokstav) {
     betingelser += `
     <fes:PropertyIsEqualTo matchCase="false">
       <fes:ValueReference>app:bokstav</fes:ValueReference>
-      <fes:Literal>${bokstav}</fes:Literal>
+      <fes:Literal>${escXml(bokstav)}</fes:Literal>
     </fes:PropertyIsEqualTo>`;
   }
 
@@ -1871,7 +1939,10 @@ async function hentFraWfs(kommunenummer, adressenavn, nummer, bokstav) {
   });
 
   const resp = await fetch(`${WFS_URL}?${params}`);
-  if (!resp.ok) return [];
+  if (!resp.ok) {
+    console.warn(`WFS-feil for kommune ${kommunenummer}: ${resp.status}`);
+    return [];
+  }
   const tekst = await resp.text();
   return parseGml(tekst);
 }
@@ -1998,21 +2069,21 @@ function visResultater(treff) {
 
     let klHtml;
     if (klinikk && url) {
-      klHtml = `<div class="klinikk"><a href="${url}" target="_blank">${klinikk} tannklinikk</a></div>`;
+      klHtml = `<div class="klinikk"><a href="${esc(url)}" target="_blank">${esc(klinikk)} tannklinikk</a></div>`;
     } else if (klinikk) {
-      klHtml = `<div class="klinikk">${klinikk} tannklinikk</div>`;
+      klHtml = `<div class="klinikk">${esc(klinikk)} tannklinikk</div>`;
     } else {
       klHtml = `<div class="klinikk ukjent">Ukjent klinikk</div>`;
     }
 
     html += `
       <div class="kort">
-        <div class="adresse">${adrtekst}, ${post}</div>
+        <div class="adresse">${esc(adrtekst)}, ${esc(post)}</div>
         <div class="detaljer">
           <span class="etikett">Kommune</span>
-          <span>${a.kommunenavn || ""} (${a.kommunenummer || ""})</span>
+          <span>${esc(a.kommunenavn || "")} (${esc(a.kommunenummer || "")})</span>
           <span class="etikett">Grunnkrets</span>
-          <span>${gnr ? `${gnavn} (nr. ${gnr})` : "ikke tilgjengelig"}</span>
+          <span>${gnr ? `${esc(gnavn)} (nr. ${esc(gnr)})` : "ikke tilgjengelig"}</span>
         </div>
         ${klHtml}
       </div>`;
@@ -2032,6 +2103,7 @@ async function utforSok() {
 
   if (!gateadresse) return;
 
+  skjulForslag();
   knapp.disabled = true;
   resultatDiv.innerHTML = '<p class="status">Soker ...</p>';
 
@@ -2039,17 +2111,138 @@ async function utforSok() {
     const treff = await sokGrunnkrets(gateadresse);
     visResultater(treff);
   } catch (e) {
-    resultatDiv.innerHTML = `<p class="status feil">Feil: ${e.message}</p>`;
+    const p = document.createElement("p");
+    p.className = "status feil";
+    p.textContent = `Feil: ${e.message}`;
+    resultatDiv.innerHTML = "";
+    resultatDiv.appendChild(p);
   } finally {
     knapp.disabled = false;
   }
 }
 
+// === Autocomplete ===
+
+let forslagTimer = null;
+let aktivtForslag = -1;
+let forslagVersjon = 0;
+
+async function hentForslag(soketekst) {
+  const sokMedWildcard = soketekst.endsWith("*") ? soketekst : soketekst + "*";
+  const params = new URLSearchParams({
+    sok: sokMedWildcard,
+    treffPerSide: "1000",
+    side: "0",
+    filtrer: "adresser.adressenavn,adresser.poststed,adresser.kommunenummer",
+  });
+  try {
+    const resp = await fetch(`${REST_URL}?${params}`);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    // Filtrer til Akershus og dedupliser på gatenavn + poststed
+    const sett = new Set();
+    const resultater = [];
+    for (const a of data.adresser || []) {
+      if (!(a.kommunenummer || "").startsWith(AKERSHUS_PREFIKS)) continue;
+      const navn = a.adressenavn || "";
+      if (!navn) continue;
+      const nokkel = `${navn.toLowerCase()}|${(a.poststed || "").toLowerCase()}`;
+      if (sett.has(nokkel)) continue;
+      sett.add(nokkel);
+      resultater.push({ adressenavn: navn, poststed: a.poststed || "" });
+      if (resultater.length >= 8) break;
+    }
+    return resultater;
+  } catch {
+    return [];
+  }
+}
+
+function visForslag(forslag) {
+  const div = document.getElementById("forslag");
+  aktivtForslag = -1;
+  if (forslag.length === 0) {
+    div.classList.remove("synlig");
+    div.innerHTML = "";
+    return;
+  }
+  div.innerHTML = forslag.map((f, i) =>
+    `<div class="forslag-item" data-index="${i}" data-adresse="${esc(f.adressenavn)}">${esc(f.adressenavn)} <span class="poststed">${esc(f.poststed)}</span></div>`
+  ).join("");
+  div.classList.add("synlig");
+}
+
+function skjulForslag() {
+  const div = document.getElementById("forslag");
+  div.classList.remove("synlig");
+  aktivtForslag = -1;
+}
+
+function velgForslag(adressenavn) {
+  document.getElementById("adresse").value = adressenavn;
+  skjulForslag();
+  utforSok();
+}
+
+// Input-hendelse med debounce og race condition-beskyttelse
+document.getElementById("adresse").addEventListener("input", () => {
+  clearTimeout(forslagTimer);
+  const verdi = document.getElementById("adresse").value.trim();
+  if (verdi.length < 4) {
+    skjulForslag();
+    return;
+  }
+  const versjon = ++forslagVersjon;
+  forslagTimer = setTimeout(async () => {
+    const forslag = await hentForslag(verdi);
+    if (versjon === forslagVersjon) visForslag(forslag);
+  }, 250);
+});
+
+// Tastaturnavigasjon i forslag
+document.getElementById("adresse").addEventListener("keydown", (e) => {
+  const div = document.getElementById("forslag");
+  const items = div.querySelectorAll(".forslag-item");
+
+  if (!div.classList.contains("synlig") || items.length === 0) {
+    if (e.key === "Enter") utforSok();
+    return;
+  }
+
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    aktivtForslag = Math.min(aktivtForslag + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle("aktiv", i === aktivtForslag));
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    aktivtForslag = Math.max(aktivtForslag - 1, 0);
+    items.forEach((el, i) => el.classList.toggle("aktiv", i === aktivtForslag));
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (aktivtForslag >= 0) {
+      velgForslag(items[aktivtForslag].dataset.adresse);
+    } else {
+      skjulForslag();
+      utforSok();
+    }
+  } else if (e.key === "Escape") {
+    skjulForslag();
+  }
+});
+
+// Klikk på forslag
+document.getElementById("forslag").addEventListener("click", (e) => {
+  const item = e.target.closest(".forslag-item");
+  if (item) velgForslag(item.dataset.adresse);
+});
+
+// Skjul forslag ved klikk utenfor
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".sokefelt-wrapper")) skjulForslag();
+});
+
 // Klikk eller Enter starter soket
 document.getElementById("sokKnapp").addEventListener("click", utforSok);
-document.getElementById("adresse").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") utforSok();
-});
 </script>
 </body>
 </html>
