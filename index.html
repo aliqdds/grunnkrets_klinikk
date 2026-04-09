@@ -1,9 +1,13 @@
 <!DOCTYPE html>
-<html lang="no">
+<html lang="nb">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Finn din tannklinikk — Akershus fylkeskommune</title>
+  <meta name="description" content="Finn hvilken offentlig tannklinikk du tilhører i Akershus basert på adressen din">
+  <meta property="og:title" content="Finn din tannklinikk — Akershus fylkeskommune">
+  <meta property="og:description" content="Finn hvilken offentlig tannklinikk du tilhører i Akershus basert på adressen din">
+  <meta property="og:type" content="website">
   <!-- Inter: profilfonten til Akershus fylkeskommune -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,6 +74,7 @@
     /* --- Sokefelt --- */
     .sokefelt {
       display: flex;
+      flex-wrap: wrap;
       gap: 0.5rem;
       margin-bottom: 1.5rem;
     }
@@ -246,26 +251,86 @@
       color: #6b8294;
       font-size: 0.82rem;
     }
+
+    /* --- Nummervelger --- */
+    .nummer-velger {
+      padding: 0.7rem 0.8rem;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 1rem;
+      font-weight: 300;
+      color: var(--afk-sort);
+      border: 2px solid #c0ced8;
+      border-radius: 200px;
+      outline: none;
+      background: var(--afk-hvit);
+      cursor: pointer;
+      min-width: 5.5rem;
+      transition: border-color 0.2s;
+    }
+
+    .nummer-velger:focus {
+      border-color: var(--afk-bla);
+    }
+
+    /* --- Tilgjengelighet --- */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* --- Lastespinner --- */
+    .spinner {
+      display: inline-block;
+      width: 1.2em;
+      height: 1.2em;
+      border: 2px solid #c0ced8;
+      border-top-color: var(--afk-bla);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 0.5em;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
+  <main class="container">
+    <header class="header">
       <h1>Finn din tannklinikk</h1>
       <p class="undertekst">Skriv inn adressen din for å finne hvilken tannklinikk du tilhører i Akershus</p>
-    </div>
+    </header>
 
-    <div class="sokefelt">
+    <form class="sokefelt" role="search" aria-label="Adressesøk" onsubmit="return false;">
+      <label for="adresse" class="sr-only">Skriv inn gateadressen din</label>
       <div class="sokefelt-wrapper">
         <input type="text" id="adresse" placeholder="F.eks. Storgata 5 eller Kirkegata"
-               autofocus autocomplete="off">
-        <div class="forslag" id="forslag"></div>
+               autofocus autocomplete="off"
+               role="combobox"
+               aria-expanded="false"
+               aria-autocomplete="list"
+               aria-controls="forslag"
+               aria-haspopup="listbox">
+        <div class="forslag" id="forslag" role="listbox" aria-label="Adresseforslag"></div>
       </div>
-      <button id="sokKnapp">Søk</button>
-    </div>
+      <label for="nummerVelger" class="sr-only">Velg husnummer</label>
+      <select id="nummerVelger" class="nummer-velger" style="display:none;" aria-label="Husnummer">
+        <option value="">Velg nr.</option>
+      </select>
+      <button id="sokKnapp" type="button">Søk</button>
+    </form>
 
-    <div id="resultat"></div>
-  </div>
+    <div id="resultat" aria-live="polite"></div>
+  </main>
 
 <!-- Klinikk-mapping generert fra Grunnkretsoppsett-Tannhelse.csv -->
 <script>
@@ -2104,8 +2169,9 @@ async function utforSok() {
   if (!gateadresse) return;
 
   skjulForslag();
+  skjulNummerVelger();
   knapp.disabled = true;
-  resultatDiv.innerHTML = '<p class="status">Soker ...</p>';
+  resultatDiv.innerHTML = '<p class="status"><span class="spinner" aria-hidden="true"></span> Søker ...</p>';
 
   try {
     const treff = await sokGrunnkrets(gateadresse);
@@ -2120,6 +2186,68 @@ async function utforSok() {
     knapp.disabled = false;
   }
 }
+
+// === Nummervelger ===
+
+let valgtGatenavn = null;
+
+async function hentNumre(adressenavn, poststed) {
+  const params = new URLSearchParams({
+    sok: adressenavn,
+    treffPerSide: "1000",
+    side: "0",
+    filtrer: "adresser.adressenavn,adresser.nummer,adresser.bokstav,adresser.kommunenummer,adresser.poststed",
+  });
+  try {
+    const resp = await fetch(`${REST_URL}?${params}`);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+
+    const sett = new Set();
+    const resultater = [];
+    for (const a of data.adresser || []) {
+      if (!(a.kommunenummer || "").startsWith(AKERSHUS_PREFIKS)) continue;
+      if ((a.adressenavn || "").toLowerCase() !== adressenavn.toLowerCase()) continue;
+      if (poststed && (a.poststed || "").toLowerCase() !== poststed.toLowerCase()) continue;
+      const nr = a.nummer || "";
+      const bk = a.bokstav || "";
+      const nokkel = `${nr}${bk}`;
+      if (!nr || sett.has(nokkel)) continue;
+      sett.add(nokkel);
+      resultater.push({ nummer: nr, bokstav: bk, label: bk ? `${nr}${bk}` : nr });
+    }
+
+    resultater.sort((a, b) => {
+      const nDiff = parseInt(a.nummer) - parseInt(b.nummer);
+      if (nDiff !== 0) return nDiff;
+      return (a.bokstav || "").localeCompare(b.bokstav || "");
+    });
+
+    return resultater;
+  } catch {
+    return [];
+  }
+}
+
+function visNummerVelger(numre) {
+  const select = document.getElementById("nummerVelger");
+  select.innerHTML = '<option value="">Velg nr.</option>';
+  for (const n of numre) {
+    const opt = document.createElement("option");
+    opt.value = JSON.stringify({ nummer: n.nummer, bokstav: n.bokstav });
+    opt.textContent = n.label;
+    select.appendChild(opt);
+  }
+  select.style.display = "";
+  select.focus();
+}
+
+function skjulNummerVelger() {
+  const select = document.getElementById("nummerVelger");
+  select.style.display = "none";
+  select.innerHTML = '<option value="">Velg nr.</option>';
+}
+
 
 // === Autocomplete ===
 
@@ -2160,33 +2288,63 @@ async function hentForslag(soketekst) {
 
 function visForslag(forslag) {
   const div = document.getElementById("forslag");
+  const input = document.getElementById("adresse");
   aktivtForslag = -1;
   if (forslag.length === 0) {
     div.classList.remove("synlig");
     div.innerHTML = "";
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
     return;
   }
   div.innerHTML = forslag.map((f, i) =>
-    `<div class="forslag-item" data-index="${i}" data-adresse="${esc(f.adressenavn)}">${esc(f.adressenavn)} <span class="poststed">${esc(f.poststed)}</span></div>`
+    `<div class="forslag-item" id="forslag-${i}" role="option" aria-selected="false" data-index="${i}" data-adresse="${esc(f.adressenavn)}" data-poststed="${esc(f.poststed)}">${esc(f.adressenavn)} <span class="poststed">${esc(f.poststed)}</span></div>`
   ).join("");
   div.classList.add("synlig");
+  input.setAttribute("aria-expanded", "true");
 }
 
 function skjulForslag() {
   const div = document.getElementById("forslag");
+  const input = document.getElementById("adresse");
   div.classList.remove("synlig");
   aktivtForslag = -1;
+  input.setAttribute("aria-expanded", "false");
+  input.removeAttribute("aria-activedescendant");
 }
 
-function velgForslag(adressenavn) {
-  document.getElementById("adresse").value = adressenavn;
+async function velgForslag(adressenavn, poststed) {
+  const input = document.getElementById("adresse");
+  input.value = adressenavn;
+  valgtGatenavn = adressenavn;
   skjulForslag();
-  utforSok();
+  skjulNummerVelger();
+
+  const resultatDiv = document.getElementById("resultat");
+  resultatDiv.innerHTML = '<p class="status"><span class="spinner" aria-hidden="true"></span> Henter husnumre ...</p>';
+
+  const numre = await hentNumre(adressenavn, poststed || "");
+  resultatDiv.innerHTML = "";
+
+  if (numre.length === 0) {
+    utforSok();
+    return;
+  }
+
+  if (numre.length === 1) {
+    input.value = `${adressenavn} ${numre[0].label}`;
+    utforSok();
+    return;
+  }
+
+  visNummerVelger(numre);
 }
 
 // Input-hendelse med debounce og race condition-beskyttelse
 document.getElementById("adresse").addEventListener("input", () => {
   clearTimeout(forslagTimer);
+  valgtGatenavn = null;
+  skjulNummerVelger();
   const verdi = document.getElementById("adresse").value.trim();
   if (verdi.length < 4) {
     skjulForslag();
@@ -2212,15 +2370,23 @@ document.getElementById("adresse").addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown") {
     e.preventDefault();
     aktivtForslag = Math.min(aktivtForslag + 1, items.length - 1);
-    items.forEach((el, i) => el.classList.toggle("aktiv", i === aktivtForslag));
+    items.forEach((el, i) => {
+      el.classList.toggle("aktiv", i === aktivtForslag);
+      el.setAttribute("aria-selected", i === aktivtForslag ? "true" : "false");
+    });
+    document.getElementById("adresse").setAttribute("aria-activedescendant", `forslag-${aktivtForslag}`);
   } else if (e.key === "ArrowUp") {
     e.preventDefault();
     aktivtForslag = Math.max(aktivtForslag - 1, 0);
-    items.forEach((el, i) => el.classList.toggle("aktiv", i === aktivtForslag));
+    items.forEach((el, i) => {
+      el.classList.toggle("aktiv", i === aktivtForslag);
+      el.setAttribute("aria-selected", i === aktivtForslag ? "true" : "false");
+    });
+    document.getElementById("adresse").setAttribute("aria-activedescendant", `forslag-${aktivtForslag}`);
   } else if (e.key === "Enter") {
     e.preventDefault();
     if (aktivtForslag >= 0) {
-      velgForslag(items[aktivtForslag].dataset.adresse);
+      velgForslag(items[aktivtForslag].dataset.adresse, items[aktivtForslag].dataset.poststed);
     } else {
       skjulForslag();
       utforSok();
@@ -2233,12 +2399,21 @@ document.getElementById("adresse").addEventListener("keydown", (e) => {
 // Klikk på forslag
 document.getElementById("forslag").addEventListener("click", (e) => {
   const item = e.target.closest(".forslag-item");
-  if (item) velgForslag(item.dataset.adresse);
+  if (item) velgForslag(item.dataset.adresse, item.dataset.poststed);
 });
 
 // Skjul forslag ved klikk utenfor
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".sokefelt-wrapper")) skjulForslag();
+});
+
+// Valg av husnummer
+document.getElementById("nummerVelger").addEventListener("change", function() {
+  if (!this.value || !valgtGatenavn) return;
+  const { nummer, bokstav } = JSON.parse(this.value);
+  const label = bokstav ? `${nummer}${bokstav}` : nummer;
+  document.getElementById("adresse").value = `${valgtGatenavn} ${label}`;
+  utforSok();
 });
 
 // Klikk eller Enter starter soket
