@@ -86,7 +86,7 @@
       font-size: 1rem;
       font-weight: 300;
       color: var(--afk-sort);
-      border: 2px solid #c0ced8;
+      border: 2px solid #8a9dac;
       border-radius: 200px;
       outline: none;
       transition: border-color 0.2s;
@@ -94,10 +94,12 @@
 
     .sokefelt input:focus {
       border-color: var(--afk-bla);
+      outline: 3px solid var(--afk-bla);
+      outline-offset: -1px;
     }
 
     .sokefelt input::placeholder {
-      color: #8899a6;
+      color: #627a8a;
     }
 
     .sokefelt button {
@@ -116,6 +118,11 @@
     .sokefelt button:hover {
       background: var(--afk-hvit);
       color: var(--afk-bla);
+    }
+
+    .sokefelt button:focus {
+      outline: 3px solid var(--afk-sort);
+      outline-offset: 2px;
     }
 
     .sokefelt button:disabled {
@@ -138,10 +145,67 @@
     /* --- Resultatkort --- */
     .kort {
       background: var(--afk-hvit);
-      border: 1px solid #d4dde5;
+      border: 1px solid #8a9dac;
       border-radius: 8px;
-      padding: 1.2rem 1.4rem;
+      overflow: hidden;
       margin-bottom: 0.75rem;
+    }
+
+    .klinikk-hero {
+      background: var(--afk-bla);
+      color: var(--afk-hvit);
+      padding: 1.4rem 1.5rem 1.2rem;
+    }
+
+    .klinikk-hero.ukjent {
+      background: #7f1d1d;
+    }
+
+    .klinikk-intro {
+      font-size: 0.85rem;
+      font-weight: 300;
+      opacity: 0.85;
+      margin-bottom: 0.15rem;
+    }
+
+    .klinikk-navn {
+      font-size: 1.35rem;
+      font-weight: 600;
+      line-height: 1.25;
+      margin-bottom: 0.5rem;
+    }
+
+    .klinikk-lenke {
+      display: inline-block;
+      margin-top: 0.3rem;
+      padding: 0.45rem 1.1rem;
+      background: var(--afk-hvit);
+      color: var(--afk-bla);
+      border-radius: 200px;
+      font-size: 0.9rem;
+      font-weight: 400;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+
+    .klinikk-lenke:hover {
+      background: var(--afk-lys-bg);
+      text-decoration: underline;
+    }
+
+    .klinikk-lenke:focus {
+      outline: 3px solid var(--afk-hvit);
+      outline-offset: 2px;
+    }
+
+    .klinikk-ukjent-info {
+      font-size: 0.85rem;
+      font-weight: 300;
+      opacity: 0.85;
+    }
+
+    .kort-detaljer {
+      padding: 1rem 1.5rem;
     }
 
     .kort .adresse {
@@ -160,36 +224,9 @@
     }
 
     .kort .etikett {
-      color: #6b8294;
+      color: #4d6678;
       font-size: 0.85rem;
       font-weight: 400;
-    }
-
-    .kort .klinikk {
-      margin-top: 0.6rem;
-      padding: 0.5rem 0.8rem;
-      background: #e8f1f8;
-      border-left: 3px solid var(--afk-bla);
-      border-radius: 0 4px 4px 0;
-      font-weight: 600;
-      font-size: 0.95rem;
-      color: var(--afk-mork);
-    }
-
-    .kort .klinikk a {
-      color: var(--afk-bla);
-      text-decoration: none;
-    }
-
-    .kort .klinikk a:hover {
-      text-decoration: underline;
-      color: var(--afk-mork);
-    }
-
-    .kort .klinikk.ukjent {
-      background: #fef2f2;
-      border-left-color: #b91c1c;
-      color: #7f1d1d;
     }
 
     .antall {
@@ -248,7 +285,7 @@
     }
 
     .forslag-item .poststed {
-      color: #6b8294;
+      color: #4d6678;
       font-size: 0.82rem;
     }
 
@@ -259,7 +296,7 @@
       font-size: 1rem;
       font-weight: 300;
       color: var(--afk-sort);
-      border: 2px solid #c0ced8;
+      border: 2px solid #8a9dac;
       border-radius: 200px;
       outline: none;
       background: var(--afk-hvit);
@@ -270,9 +307,28 @@
 
     .nummer-velger:focus {
       border-color: var(--afk-bla);
+      outline: 3px solid var(--afk-bla);
+      outline-offset: -1px;
     }
 
     /* --- Tilgjengelighet --- */
+    .skip-link {
+      position: absolute;
+      top: -100%;
+      left: 1rem;
+      background: var(--afk-bla);
+      color: var(--afk-hvit);
+      padding: 0.5rem 1rem;
+      border-radius: 0 0 4px 4px;
+      z-index: 100;
+      font-weight: 400;
+      text-decoration: none;
+    }
+
+    .skip-link:focus {
+      top: 0;
+    }
+
     .sr-only {
       position: absolute;
       width: 1px;
@@ -304,13 +360,14 @@
   </style>
 </head>
 <body>
+  <a href="#resultat" class="skip-link">Hopp til resultater</a>
   <main class="container">
     <header class="header">
       <h1>Finn din tannklinikk</h1>
       <p class="undertekst">Skriv inn adressen din for å finne hvilken tannklinikk du tilhører i Akershus</p>
     </header>
 
-    <form class="sokefelt" role="search" aria-label="Adressesøk" onsubmit="return false;">
+    <form class="sokefelt" role="search" aria-label="Adressesøk">
       <label for="adresse" class="sr-only">Skriv inn gateadressen din</label>
       <div class="sokefelt-wrapper">
         <input type="text" id="adresse" placeholder="F.eks. Storgata 5 eller Kirkegata"
@@ -331,6 +388,10 @@
 
     <div id="resultat" aria-live="polite"></div>
   </main>
+
+  <footer style="text-align:center; font-size:0.85rem; color:var(--afk-mork); margin-top:2rem; max-width:640px; margin-left:auto; margin-right:auto;">
+    <p>Akershus fylkeskommune — Tannhelsetjenesten</p>
+  </footer>
 
 <!-- Klinikk-mapping generert fra Grunnkretsoppsett-Tannhelse.csv -->
 <script>
@@ -2124,11 +2185,11 @@ function visResultater(treff) {
   const resultatDiv = document.getElementById("resultat");
 
   if (treff.length === 0) {
-    resultatDiv.innerHTML = '<p class="status">Ingen treff i Akershus. Sjekk stavematen.</p>';
+    resultatDiv.innerHTML = '<p class="status" role="status">Ingen treff i Akershus. Sjekk stavemåten.</p>';
     return;
   }
 
-  let html = `<p class="antall">Fant ${treff.length} treff:</p>`;
+  let html = `<p class="antall" role="status">Fant ${treff.length} treff:</p>`;
 
   for (const a of treff) {
     const adrtekst = a.adressetekst || "Ukjent adresse";
@@ -2140,26 +2201,44 @@ function visResultater(treff) {
     const klinikk = gnr ? (KLINIKK_MAP[gnr] || null) : null;
     const url     = klinikk ? (KLINIKK_URL[klinikk] || null) : null;
 
-    let klHtml;
+    let klHero;
     if (klinikk && url) {
-      klHtml = `<div class="klinikk"><a href="${esc(url)}" target="_blank">${esc(klinikk)} tannklinikk</a></div>`;
+      klHero = `
+        <div class="klinikk-hero">
+          <p class="klinikk-intro">Du tilhører</p>
+          <h2 class="klinikk-navn">${esc(klinikk)} tannklinikk</h2>
+          <a href="${esc(url)}" target="_blank" rel="noopener noreferrer" class="klinikk-lenke">
+            Gå til klinikkens nettside <span class="sr-only">(åpnes i nytt vindu)</span> →
+          </a>
+        </div>`;
     } else if (klinikk) {
-      klHtml = `<div class="klinikk">${esc(klinikk)} tannklinikk</div>`;
+      klHero = `
+        <div class="klinikk-hero">
+          <p class="klinikk-intro">Du tilhører</p>
+          <h2 class="klinikk-navn">${esc(klinikk)} tannklinikk</h2>
+        </div>`;
     } else {
-      klHtml = `<div class="klinikk ukjent">Ukjent klinikk</div>`;
+      klHero = `
+        <div class="klinikk-hero ukjent">
+          <p class="klinikk-intro">Klinikk</p>
+          <h2 class="klinikk-navn">Ukjent klinikk</h2>
+          <p class="klinikk-ukjent-info">Vi fant ikke en tilhørende klinikk for denne adressen.</p>
+        </div>`;
     }
 
     html += `
-      <div class="kort">
-        <div class="adresse">${esc(adrtekst)}, ${esc(post)}</div>
-        <div class="detaljer">
-          <span class="etikett">Kommune</span>
-          <span>${esc(a.kommunenavn || "")} (${esc(a.kommunenummer || "")})</span>
-          <span class="etikett">Grunnkrets</span>
-          <span>${gnr ? `${esc(gnavn)} (nr. ${esc(gnr)})` : "ikke tilgjengelig"}</span>
+      <article class="kort" aria-label="${esc(adrtekst)}">
+        ${klHero}
+        <div class="kort-detaljer">
+          <div class="adresse">${esc(adrtekst)}, ${esc(post)}</div>
+          <div class="detaljer">
+            <span class="etikett">Kommune</span>
+            <span>${esc(a.kommunenavn || "")} (${esc(a.kommunenummer || "")})</span>
+            <span class="etikett">Grunnkrets</span>
+            <span>${gnr ? `${esc(gnavn)} (nr. ${esc(gnr)})` : "ikke tilgjengelig"}</span>
+          </div>
         </div>
-        ${klHtml}
-      </div>`;
+      </article>`;
   }
 
   resultatDiv.innerHTML = html;
@@ -2187,6 +2266,7 @@ async function utforSok() {
   } catch (e) {
     const p = document.createElement("p");
     p.className = "status feil";
+    p.setAttribute("role", "alert");
     p.textContent = `Feil: ${e.message}`;
     resultatDiv.innerHTML = "";
     resultatDiv.appendChild(p);
@@ -2429,6 +2509,7 @@ document.getElementById("nummerVelger").addEventListener("change", function() {
 
 // Klikk eller Enter starter soket
 document.getElementById("sokKnapp").addEventListener("click", utforSok);
+document.querySelector("form.sokefelt").addEventListener("submit", (e) => e.preventDefault());
 </script>
 </body>
 </html>
